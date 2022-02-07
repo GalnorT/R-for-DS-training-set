@@ -1,0 +1,186 @@
+---
+title: "R for DS for Debate: Examining changes in voting patterns and demographics"
+author: "Tom"
+date: "7. 2. 2022"
+output: 
+  html_document:
+    toc: TRUE
+---
+```{r load data, include = FALSE, echo = FALSE} 
+library(tidyverse)
+census <- read_rds("https://github.com/GalnorT/R-for-DS-training-set/blob/76f9fad36b16b1b821f569c469b9a4f735c7b7d6/census.rds")
+```
+
+
+# 1 Introduction
+
+In this short document, I'll describe the work I did on the US Census 2000-2019 Election Data Set. Mainly, I'll be looking at correlation, or lack thereof, between changes in demographic patterns and changes in voting patterns. For the purposes of clarity and fool-proofing (i.e to make it easy to call out bad code), I'll be keeping all code chunks visible (i.e. `echo = TRUE`). This might reduce readability, but since learning R is the goal here, I believe this to be a reasonable trade off.
+
+This document will proceed as follows: First, I'll describe the original data set, what problems it had and how they were fixed. Secondly, I'll present the process of how I arrived at the modified data set I used for this analysis. Thirdly, I'll draw a few plots which I hope have some informative value and discuss some of their implications. Lastly, I'll conclude by noting the limitations of the data and the  methods I used and how they could be improved.
+
+# 2 Data
+## 2.1 Original Data
+The original data I worked with came from the US Election Census resulst of 1849 counties for the years 2000, 2003, 2006, 2008, 2012, 2016, 2019, but as I was not able to find a similarly clean data set from the original source, I used the data set [made available](https://github.com/trainingvirtue/2020-Election-Data-and-Analysis) by GitHub user **trainingvirtue** who used it to demonstrate "that counties that used Dominion systems had an inexplicable shift away from Trump of .6% of all votes." In my analysis of the data, I could not detect any tampering, but it is important to note a potential Republican bias in the data.
+
+In addition, the original data set was also messy. Specifically, it adopted a format likely used to make data entry easier, that is, the variables as given were combinations of several other variables. For example, the original variable `reptodem2008` clearly combined the type of data that was being recorded (`reptodem`) and also the year. As such, it was necessary to tidy it up.
+
+## 2.2 Modified Data
+
+The `census` data frame, apart from carrying over identifying variables (key being `ctyname` - the name of the county where the data was collected), also contains several "change" variables. These were computed by taking the value for the particular type of data recorded for the year 2008 and subtracting it from the value for the year 2016. The list below illustrates what each of these variables refer to.
+
+* `aa_change` - The absolute change in the proportion of votes cast by African American voters in a given county. This means that a value of 0.02 implies that compared to 2008, the proportion of African American voters in a given county increased by 2% (out of the entire voting population recorded for that year).
+* `white_change` - Same as above, except for White voters.
+* `hisp_change` - Same as above, except for Hispanic voters
+* `rtd_change` - The absolute change in the ratio between Republican votes cast and Democratic votes cast. For example, if in 2008, 10 votes for Republicans and 5 votes for Democrats were cast in a given county, this would result in a `rtd` of 2. `rtd_change` then records the change in this ratio between 2016 and 2008.
+
+# 3 Analysis
+## 3.1 Overview
+
+Before I move on to plotting the correlations between various variables, I'll briefly look at the average county:
+
+```{r}
+summary(census)
+```
+
+The average county became more Republican with a greater share of the vote being cast by Hispanics and African Americans, and a lesser share being cast by Whites. 
+
+Note that the large values for the respective maximums and minimums of each variable are caused by large demographic swings in those counties^[For example, Grant County in West Virginia has a `rtd_change` of almost 33, the highest within the data set, but also exhibits large demographic shifts, the value of `aa_change` being almost 10 times the mean.] and therefore do not warrant exclusion from the data set given that they best demonstrate the patterns I am hoping to study.
+
+The specific distributions for the various variables are shown in the boxplots below:
+
+```{r}
+census %>%
+  ggplot(aes(x = aa_change)) + 
+  geom_boxplot() +
+  theme_minimal() + 
+  labs(
+    x = "Change in % of votes cast by African Americans"
+  )
+
+census %>%
+  ggplot(aes(x = white_change)) + 
+  geom_boxplot() +
+  theme_minimal() + 
+  labs(
+    x = "Change in % of votes cast by Whites"
+  )
+
+census %>%
+  ggplot(aes(x = hisp_change)) + 
+  geom_boxplot() +
+  theme_minimal() + 
+  labs(
+    x = "Change in % of votes cast by Hispanics"
+  )
+
+census %>%
+  ggplot(aes(x = rtd_change)) + 
+  geom_boxplot() +
+  theme_minimal() + 
+  labs(
+    x = "Change in ratio between Rep. and Dem. votes"
+  )
+```
+
+## 3.2 Correlations between demographic changes and voting pattern changes
+
+### 3.2.1 Demographic Changes
+
+Plotting the demographic change variables reveals these three plots (for the sake of clarity, I have abbreviated the axis labels):
+
+```{r}
+census %>%
+  ggplot(aes(x = white_change, y = aa_change)) +
+  geom_point() + 
+  geom_smooth() + 
+  theme_minimal() +
+  labs(
+    x = "White votes", 
+    y = "African American votes",
+    title = "White x African American"
+  )
+census %>%
+  ggplot(aes(x = white_change, y = hisp_change)) +
+  geom_point() + 
+  geom_smooth() + 
+  theme_minimal() +
+  labs(
+    x = "White votes", 
+    y = "Hispanic votes",
+    title = "White x Hispanic"
+  )
+census %>%
+  ggplot(aes(x = hisp_change, y = aa_change)) +
+  geom_point() + 
+  geom_smooth() + 
+  theme_minimal() +
+  labs(
+    x = "Hispanic votes", 
+    y = "African American votes",
+    title = "Hispanic x African American"
+  )
+
+```
+
+The plots look exactly as expected. 
+
+There is a negative correlation between a change in the percentage of votes cast by Whites and the percentages of votes cast by members of the two non-white groups. This satisfies common sense. When the proportion of minority votes increases, we would expect the majority proportion to decline.
+
+The positive correlation between Hispanic and African American proportions is also of note. It appears that when the White proportion declines, their share of the vote is claimed equally by both non-white groups.
+
+### 3.2.2 Effect of demographic shifts on voting patterns
+
+Here are the plots of the various demographic shifts and their effect on voting patterns:
+```{r}
+census %>%
+  ggplot(aes(x = white_change, y = rtd_change)) +
+  geom_point() + 
+  geom_smooth() + 
+  theme_minimal() +
+  labs(
+    x = "White votes", 
+    y = "Rep. to Dem. ratio",
+    title = "Changes in % of White vote and their effect on Republican/Democrat votes"
+  )
+
+census %>%
+  ggplot(aes(x = hisp_change, y = rtd_change)) +
+  geom_point() + 
+  geom_smooth() + 
+  theme_minimal() +
+  labs(
+    x = "Hispanic votes", 
+    y = "Rep. to Dem. ratio",
+    title = "Changes in % of Hispanic vote and their effect on Republican/Democrat votes"
+  )
+
+census %>%
+  ggplot(aes(x = aa_change, y = rtd_change)) +
+  geom_point() + 
+  geom_smooth() + 
+  theme_minimal() +
+  labs(
+    x = "African American votes", 
+    y = "Rep. to Dem. ratio",
+    title = "Changes in % of African American vote and Republican/Democrat ratio"
+  )
+
+
+```
+
+These results are likely surprising.
+
+A negative correlation is apparent between the change in the White share of the vote and the Republican/Democrat ratio. This somewhat contradicts the commonly held belief that Whites tend to vote Republican, but a possible resolution to the contradiction exists. The birth rate for American Whites^[For example, see the [CDC data](https://www.cdc.gov/nchs/data/statab/t001x01.pdf)] is much lower than the birth rate of other races (and much lower than replacement fertility, for that matter), which makes it more likely that an increase in the White share of the vote is due to either **a)** a decrease in the population of other ethnic groups or **b)** an increase in the White population due to inter-county migration. 
+
+**a)** is born out by the data (see tables "White x African American" and "White x Hispanic"). The White party preference for Republicans could then be explained, at least in part, as a reaction to the presence of minority ethnic voters, therefore we would expect that a decrease in minority ethnic voters would lessen this effect somewhat and thereby decrease the White lean towards Republicans.
+
+For **b)**, it is important to recognize that voters who tend to migrate between counties can be expected to have a higher level of educational attainment^[For example, see this [Pew Research article](https://www.pewresearch.org/politics/2018/03/20/1-trends-in-party-affiliation-among-demographic-groups/)] and can be assumed to be less attached to their home community. As such, we would naturally expect them to lean less towards Republicans. Thus, it is possible that those newcomer Whites who drive up the White share of the vote are less likely to vote Republican, even if Whites in general were to lean Republican.
+
+There exists a positive correlation between the changes in the percentage of votes cast by both, African Americans and Hispanics, and the ratio of Republican to Democrat votes. In other words, when the non-white share of the vote increases, the voters of that county tend to vote more Republican. There are two possible explanations: either the new minority voters tend to vote Republican, or the remaining White voters lean more towards Republicans in response to the demographic shift. Given that it is well documented that minority voters tend to overwhelmingly vote Democrat, I find the first possibility much more likely.
+
+# 4 Conclussion
+While some of the data showed patterns contrary to what other major studies have shown, these patterns are still explicable within the framing outlined by those same studies. This mainly means that even though some of the data used here appears to imply a preference for Republicans among minority voters and a preference for Democrats among White voters, this is not necessarily the only and the most valid interpretation of the data.
+
+This is also where the major limits of the data come in. The aggregation and filtering I used for the data set means that I could only count the change in proportion of votes, not the total votes themselves. Data on other demographic groups, including their absolute counts, would prove useful in this regard. In a similar vein, it might also be interesting to look at how the overall change in total population for a given state/county would affect voting pasterns.
+
+The data on demographic changes broadly match those of other data sets and therefore aligns with consensus conclusions.
