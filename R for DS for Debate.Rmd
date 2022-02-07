@@ -8,7 +8,7 @@ output:
 ---
 ```{r load data, include = FALSE, echo = FALSE} 
 library(tidyverse)
-census <- read_rds("https://github.com/GalnorT/R-for-DS-training-set/blob/76f9fad36b16b1b821f569c469b9a4f735c7b7d6/census.rds")
+census <- read_rds("https://raw.github.com/GalnorT/R-for-DS-training-set/main/census.rds")
 ```
 
 
